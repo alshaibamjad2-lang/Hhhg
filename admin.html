@@ -1,0 +1,69 @@
+<script>
+const SUPABASE_URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// تحميل الأقسام
+async function loadCategories() {
+    const { data } = await supabase.from("categories").select("*");
+    const sel = document.getElementById("prodSec");
+    sel.innerHTML = "";
+    data.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+}
+loadCategories();
+
+// إضافة قسم
+document.getElementById("addSecBtn").onclick = async () => {
+    const name = document.getElementById("secName").value.trim();
+    if (!name) return alert("اكتب اسم القسم");
+
+    const { error } = await supabase.from("categories").insert({ name });
+    if (error) {
+        alert("خطأ: " + error.message);
+        return;
+    }
+
+    alert("تم إضافة القسم");
+    loadCategories();
+};
+
+// إضافة منتج
+document.getElementById("addProdBtn").onclick = async () => {
+    const name = document.getElementById("prodName").value.trim();
+    const price = document.getElementById("prodPrice").value.trim();
+    const category_id = document.getElementById("prodSec").value;
+    const imgFile = document.getElementById("prodImgFile").files[0];
+
+    let imgUrl = "";
+
+    // رفع الصورة إلى bucket
+    if (imgFile) {
+        const fileName = Date.now() + "_" + imgFile.name;
+        const { data, error } = await supabase.storage
+            .from("menu-images")
+            .upload(fileName, imgFile);
+
+        if (error) {
+            alert("خطأ رفع الصورة: " + error.message);
+            return;
+        }
+
+        imgUrl = `https://ztwbgqkxmdhpzqhnefty.supabase.co/storage/v1/object/public/menu-images/${fileName}`;
+    }
+
+    // إضافة المنتج
+    const { error } = await supabase.from("products").insert({
+        name,
+        price,
+        category_id,
+        image_url: imgUrl
+    });
+
+    if (error) {
+        alert("خطأ: " + error.message);
+        return;
+    }
+
+    alert("تم إضافة المنتج بنجاح");
+};
+</script>

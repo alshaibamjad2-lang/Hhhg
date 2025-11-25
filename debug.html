@@ -1,7 +1,108 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Debug</title></head>
-<body style="background:#000;color:#0f0;padding:20px;font-family:monospace">
-<h2>Debug</h2>
-<p>افتح admin.html و index.html ثم جرب</p>
-</body></html>
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DEBUG — Supabase Connection</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+    background:#000;
+    color:#0f0;
+    font-family:monospace;
+    padding:20px;
+}
+.box{
+    background:#111;
+    border:1px solid #333;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:12px;
+}
+pre{
+    white-space:pre-wrap;
+    background:#000;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #444;
+    color:#0f0;
+}
+</style>
+</head>
+
+<body>
+
+<h2 style="color:#0f0;text-align:center">🔍 DEBUG — Supabase</h2>
+
+<div class="box">
+    <h3>حالة الاتصال</h3>
+    <pre id="conn"></pre>
+</div>
+
+<div class="box">
+    <h3>اختبار جدول الأقسام (categories)</h3>
+    <pre id="cats"></pre>
+</div>
+
+<div class="box">
+    <h3>اختبار جدول المنتجات (products)</h3>
+    <pre id="prods"></pre>
+</div>
+
+<div class="box">
+    <h3>آخر خطأ JavaScript</h3>
+    <pre id="err"></pre>
+</div>
+
+<script>
+// ----------- إعداد Supabase -----------
+const URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
+
+const client = supabase.createClient(URL, KEY);
+
+document.getElementById("conn").textContent = `
+URL: ${URL}
+KEY loaded: ${KEY.length > 20 ? "yes" : "NO!"}
+client created: ${client ? "OK" : "FAILED"}
+`;
+
+
+// ----------- اختبار جدول categories -----------
+(async ()=>{
+    const { data, error } = await client.from("categories").select("*");
+
+    document.getElementById("cats").textContent = error
+        ? "❌ ERROR:\n" + JSON.stringify(error, null, 2)
+        : "✔ DATA:\n" + JSON.stringify(data, null, 2);
+})();
+
+
+// ----------- اختبار جدول products -----------
+(async ()=>{
+    const { data, error } = await client.from("products").select("*");
+
+    document.getElementById("prods").textContent = error
+        ? "❌ ERROR:\n" + JSON.stringify(error, null, 2)
+        : "✔ DATA:\n" + JSON.stringify(data, null, 2);
+})();
+
+
+// ----------- كشف آخر خطأ ----------
+window.onerror = function(msg, src, line, col, err){
+    document.getElementById("err").textContent = `
+MESSAGE: ${msg}
+FILE: ${src}
+LINE: ${line}
+COL: ${col}
+ERROR OBJECT:
+${err ? err.stack : "no stack"}
+`;
+};
+</script>
+
+</body>
+</html>

@@ -2,68 +2,47 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>لوحة التحكم - إدارة المنيو</title>
 
-<!-- Supabase Library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
 body{
     font-family:'Cairo',sans-serif;
     background:#000;
     color:#fff;
-    margin:0;
     padding:20px;
 }
-
-h1{
-    text-align:center;
-    color:#c9a45a;
-    margin-bottom:20px;
-}
-
 .box{
     background:#111;
-    padding:20px;
+    border:1px solid #333;
     border-radius:14px;
+    padding:20px;
     margin-bottom:20px;
-    border:1px solid rgba(255,255,255,0.08);
 }
-
-input,select,textarea{
+input,select{
     width:100%;
     padding:12px;
     margin-top:8px;
-    margin-bottom:12px;
-    border-radius:10px;
-    border:1px solid #333;
     background:#000;
+    border:1px solid #444;
     color:#fff;
+    border-radius:10px;
 }
-
 button{
     padding:12px 18px;
-    border:none;
-    background:#c9a45a;
-    color:#000;
-    font-weight:700;
     border-radius:10px;
+    background:#c9a45a;
+    border:none;
+    font-weight:bold;
+    color:#000;
     cursor:pointer;
 }
-
-.preview-img{
-    max-width:150px;
-    border-radius:10px;
-    margin-top:10px;
-}
-
 .section-box{
+    padding:12px;
     background:#151515;
-    padding:10px;
-    border-radius:10px;
+    border-radius:12px;
     margin-bottom:10px;
 }
 </style>
@@ -71,18 +50,18 @@ button{
 
 <body>
 
-<h1>لوحة التحكم — إدارة المنيو</h1>
+<h1 style="text-align:center;color:#c9a45a;">لوحة التحكم — إدارة المنيو</h1>
 
 <!-- إضافة قسم -->
 <div class="box">
-    <h2>إضافة قسم جديد</h2>
-    <input id="secName" placeholder="اسم القسم (مثال: كيك)">
+    <h2>إضافة قسم</h2>
+    <input id="secName" placeholder="اسم القسم">
     <button id="addSecBtn">إضافة قسم</button>
 </div>
 
 <!-- إضافة منتج -->
 <div class="box">
-    <h2>إضافة منتج جديد</h2>
+    <h2>إضافة منتج</h2>
 
     <label>القسم</label>
     <select id="prodSec"></select>
@@ -90,10 +69,8 @@ button{
     <input id="prodName" placeholder="اسم المنتج">
     <input id="prodPrice" type="number" placeholder="السعر">
 
-    <label>الصورة</label>
-    <input id="prodImgFile" type="file" accept="image/*">
-
-    <img id="preview" class="preview-img" style="display:none;">
+    <label>صورة المنتج</label>
+    <input id="prodImg" type="file" accept="image/*">
 
     <button id="addProdBtn">إضافة المنتج</button>
 </div>
@@ -101,148 +78,127 @@ button{
 <!-- عرض -->
 <div class="box">
     <h2>الأقسام و المنتجات</h2>
-    <input id="search" placeholder="بحث عن منتج...">
-
+    <input id="search" placeholder="بحث عن منتج ...">
     <div id="list"></div>
 </div>
 
 <script>
-// ---------- إعداد Supabase ----------
-const SUPABASE_URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
+// إعداد Supabase
+const URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const client = supabase.createClient(URL, KEY);
 
-// Preview image
-document.getElementById("prodImgFile").addEventListener("change", e=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ev=>{
-        preview.src = ev.target.result;
-        preview.style.display="block";
-    };
-    reader.readAsDataURL(file);
-});
-
-// Load categories
+// تحميل الأقسام
 async function loadCategories(){
-    const { data } = await supabase.from("categories").select("*").order("id");
+    const { data } = await client.from("categories").select("*").order("id");
     const sel = document.getElementById("prodSec");
-    sel.innerHTML="";
+    sel.innerHTML = "";
     data.forEach(c=>{
         sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
     });
 }
 
-// Add category
-document.getElementById("addSecBtn").onclick = async ()=>{
+// إضافة قسم
+addSecBtn.onclick = async ()=>{
     const name = secName.value.trim();
     if(!name) return alert("اكتب اسم القسم");
 
-    const { error } = await supabase.from("categories").insert({ name });
+    const { error } = await client.from("categories").insert({ name });
     if(error) return alert(error.message);
 
-    alert("تم إضافة القسم");
     secName.value="";
     loadAll();
 };
 
-// Add product
-document.getElementById("addProdBtn").onclick = async ()=>{
+// إضافة منتج
+addProdBtn.onclick = async ()=>{
     const name = prodName.value.trim();
-    const price = prodPrice.value;
+    const price = prodPrice.value.trim();
     const category_id = prodSec.value;
-    const imgFile = prodImgFile.files[0];
+    const imgFile = prodImg.files[0];
 
-    if(!name || !price) return alert("أكمل البيانات");
+    if(!name || !price) return alert("أدخل بيانات المنتج");
 
     let image_url = "";
 
     if(imgFile){
-        const fileName = Date.now()+"_"+imgFile.name;
+        const fileName = Date.now() + "_" + imgFile.name;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: upErr } = await client
+            .storage
             .from("menu-images")
             .upload(fileName, imgFile);
 
-        if(uploadError) return alert(uploadError.message);
+        if(upErr) return alert(upErr.message);
 
-        image_url = `${SUPABASE_URL}/storage/v1/object/public/menu-images/${fileName}`;
+        image_url = `${URL}/storage/v1/object/public/menu-images/${fileName}`;
     }
 
-    const { error } = await supabase.from("products").insert({
-        name, price, category_id, image_url
-    });
+    const { error } = await client.from("products")
+        .insert({ name, price, category_id, image_url });
 
     if(error) return alert(error.message);
 
-    alert("تم إضافة المنتج");
-
     prodName.value="";
     prodPrice.value="";
-    prodImgFile.value="";
-    preview.style.display="none";
-
+    prodImg.value="";
     loadAll();
 };
 
-// Load all data
+// تحميل كل البيانات
 async function loadAll(){
     await loadCategories();
 
-    const { data: categories } = await supabase.from("categories").select("*").order("id");
-    const { data: products } = await supabase.from("products").select("*").order("id");
+    const { data: cats } = await client.from("categories").select("*");
+    const { data: prods } = await client.from("products").select("*");
 
-    const search = document.getElementById("search").value.toLowerCase();
+    const s = search.value.toLowerCase();
 
-    const list = document.getElementById("list");
-    list.innerHTML="";
+    list.innerHTML = "";
 
-    categories.forEach(cat=>{
-        const box = document.createElement("div");
-        box.className="section-box";
-
-        box.innerHTML = `
+    cats.forEach(cat=>{
+        const sec = document.createElement("div");
+        sec.className = "section-box";
+        sec.innerHTML = `
             <h3>${cat.name}</h3>
-            <button onclick="deleteCategory(${cat.id})" style="background:#700;color:#fff;margin-top:5px;">حذف القسم</button>
+            <button onclick="delCat(${cat.id})" style="background:#700;color:#fff">حذف القسم</button>
         `;
 
-        const items = products.filter(p=>p.category_id==cat.id && p.name.toLowerCase().includes(search));
+        prods
+            .filter(p=>p.category_id == cat.id && p.name.toLowerCase().includes(s))
+            .forEach(p=>{
+                sec.innerHTML += `
+                    <div style="margin-top:10px;">
+                        <img src="${p.image_url}" style="width:60px;border-radius:8px;margin-left:6px;">
+                        <b>${p.name}</b> — ${p.price} ر.س
+                        <button onclick="delProd(${p.id})" style="background:#a00;color:#fff">حذف</button>
+                    </div>
+                `;
+            });
 
-        items.forEach(p=>{
-            const div = document.createElement("div");
-            div.style.margin="10px 0";
-            div.innerHTML = `
-                <img src="${p.image_url}" style="width:60px;border-radius:8px;margin-left:10px;">
-                <strong>${p.name}</strong> — ${p.price} ر.س
-                <button onclick="deleteProduct(${p.id})" style="background:#a00;color:#fff;margin-right:10px;">حذف</button>
-            `;
-            box.appendChild(div);
-        });
-
-        list.appendChild(box);
+        list.appendChild(sec);
     });
 }
 
-// Delete category
-async function deleteCategory(id){
+// حذف قسم
+async function delCat(id){
     if(!confirm("حذف القسم؟")) return;
-    await supabase.from("categories").delete().eq("id", id);
+    await client.from("categories").delete().eq("id", id);
     loadAll();
 }
 
-// Delete product
-async function deleteProduct(id){
+// حذف منتج
+async function delProd(id){
     if(!confirm("حذف المنتج؟")) return;
-    await supabase.from("products").delete().eq("id", id);
+    await client.from("products").delete().eq("id", id);
     loadAll();
 }
 
-// Search
-document.getElementById("search").addEventListener("input", loadAll);
+// بحث
+search.oninput = loadAll;
 
-// Init
+// بدء
 loadAll();
 </script>
 

@@ -1,206 +1,69 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>لوحة التحكم - إدارة المنيو</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-body{
-    font-family:'Cairo',sans-serif;
-    background:#000;
-    color:#fff;
-    padding:20px;
-}
-.box{
-    background:#111;
-    border:1px solid #333;
-    border-radius:14px;
-    padding:20px;
-    margin-bottom:20px;
-}
-input,select{
-    width:100%;
-    padding:12px;
-    margin-top:8px;
-    background:#000;
-    border:1px solid #444;
-    color:#fff;
-    border-radius:10px;
-}
-button{
-    padding:12px 18px;
-    border-radius:10px;
-    background:#c9a45a;
-    border:none;
-    font-weight:bold;
-    color:#000;
-    cursor:pointer;
-}
-.section-box{
-    padding:12px;
-    background:#151515;
-    border-radius:12px;
-    margin-bottom:10px;
-}
-</style>
-</head>
-
-<body>
-
-<h1 style="text-align:center;color:#c9a45a;">لوحة التحكم — إدارة المنيو</h1>
-
-<!-- إضافة قسم -->
-<div class="box">
-    <h2>إضافة قسم</h2>
-    <input id="secName" placeholder="اسم القسم">
-    <button id="addSecBtn">إضافة قسم</button>
-</div>
-
-<!-- إضافة منتج -->
-<div class="box">
-    <h2>إضافة منتج</h2>
-
-    <label>القسم</label>
-    <select id="prodSec"></select>
-
-    <input id="prodName" placeholder="اسم المنتج">
-    <input id="prodPrice" type="number" placeholder="السعر">
-
-    <label>صورة المنتج</label>
-    <input id="prodImg" type="file" accept="image/*">
-
-    <button id="addProdBtn">إضافة المنتج</button>
-</div>
-
-<!-- عرض -->
-<div class="box">
-    <h2>الأقسام و المنتجات</h2>
-    <input id="search" placeholder="بحث عن منتج ...">
-    <div id="list"></div>
-</div>
-
 <script>
-// إعداد Supabase
-const URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
-const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
-
-const client = supabase.createClient(URL, KEY);
+const SUPABASE_URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // تحميل الأقسام
-async function loadCategories(){
-    const { data } = await client.from("categories").select("*").order("id");
+async function loadCategories() {
+    const { data } = await supabase.from("categories").select("*");
     const sel = document.getElementById("prodSec");
     sel.innerHTML = "";
-    data.forEach(c=>{
-        sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-    });
+    data.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
 }
+loadCategories();
 
 // إضافة قسم
-addSecBtn.onclick = async ()=>{
-    const name = secName.value.trim();
-    if(!name) return alert("اكتب اسم القسم");
+document.getElementById("addSecBtn").onclick = async () => {
+    const name = document.getElementById("secName").value.trim();
+    if (!name) return alert("اكتب اسم القسم");
 
-    const { error } = await client.from("categories").insert({ name });
-    if(error) return alert(error.message);
+    const { error } = await supabase.from("categories").insert({ name });
+    if (error) {
+        alert("خطأ: " + error.message);
+        return;
+    }
 
-    secName.value="";
-    loadAll();
+    alert("تم إضافة القسم");
+    loadCategories();
 };
 
 // إضافة منتج
-addProdBtn.onclick = async ()=>{
-    const name = prodName.value.trim();
-    const price = prodPrice.value.trim();
-    const category_id = prodSec.value;
-    const imgFile = prodImg.files[0];
+document.getElementById("addProdBtn").onclick = async () => {
+    const name = document.getElementById("prodName").value.trim();
+    const price = document.getElementById("prodPrice").value.trim();
+    const category_id = document.getElementById("prodSec").value;
+    const imgFile = document.getElementById("prodImgFile").files[0];
 
-    if(!name || !price) return alert("أدخل بيانات المنتج");
+    let imgUrl = "";
 
-    let image_url = "";
-
-    if(imgFile){
+    // رفع الصورة إلى bucket
+    if (imgFile) {
         const fileName = Date.now() + "_" + imgFile.name;
-
-        const { error: upErr } = await client
-            .storage
+        const { data, error } = await supabase.storage
             .from("menu-images")
             .upload(fileName, imgFile);
 
-        if(upErr) return alert(upErr.message);
+        if (error) {
+            alert("خطأ رفع الصورة: " + error.message);
+            return;
+        }
 
-        image_url = `${URL}/storage/v1/object/public/menu-images/${fileName}`;
+        imgUrl = `https://ztwbgqkxmdhpzqhnefty.supabase.co/storage/v1/object/public/menu-images/${fileName}`;
     }
 
-    const { error } = await client.from("products")
-        .insert({ name, price, category_id, image_url });
-
-    if(error) return alert(error.message);
-
-    prodName.value="";
-    prodPrice.value="";
-    prodImg.value="";
-    loadAll();
-};
-
-// تحميل كل البيانات
-async function loadAll(){
-    await loadCategories();
-
-    const { data: cats } = await client.from("categories").select("*");
-    const { data: prods } = await client.from("products").select("*");
-
-    const s = search.value.toLowerCase();
-
-    list.innerHTML = "";
-
-    cats.forEach(cat=>{
-        const sec = document.createElement("div");
-        sec.className = "section-box";
-        sec.innerHTML = `
-            <h3>${cat.name}</h3>
-            <button onclick="delCat(${cat.id})" style="background:#700;color:#fff">حذف القسم</button>
-        `;
-
-        prods
-            .filter(p=>p.category_id == cat.id && p.name.toLowerCase().includes(s))
-            .forEach(p=>{
-                sec.innerHTML += `
-                    <div style="margin-top:10px;">
-                        <img src="${p.image_url}" style="width:60px;border-radius:8px;margin-left:6px;">
-                        <b>${p.name}</b> — ${p.price} ر.س
-                        <button onclick="delProd(${p.id})" style="background:#a00;color:#fff">حذف</button>
-                    </div>
-                `;
-            });
-
-        list.appendChild(sec);
+    // إضافة المنتج
+    const { error } = await supabase.from("products").insert({
+        name,
+        price,
+        category_id,
+        image_url: imgUrl
     });
-}
 
-// حذف قسم
-async function delCat(id){
-    if(!confirm("حذف القسم؟")) return;
-    await client.from("categories").delete().eq("id", id);
-    loadAll();
-}
+    if (error) {
+        alert("خطأ: " + error.message);
+        return;
+    }
 
-// حذف منتج
-async function delProd(id){
-    if(!confirm("حذف المنتج؟")) return;
-    await client.from("products").delete().eq("id", id);
-    loadAll();
-}
-
-// بحث
-search.oninput = loadAll;
-
-// بدء
-loadAll();
+    alert("تم إضافة المنتج بنجاح");
+};
 </script>
-
-</body>
-</html>

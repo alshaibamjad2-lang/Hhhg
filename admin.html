@@ -1,69 +1,250 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>لوحة التحكم - إدارة المنيو</title>
+
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body{
+    font-family:'Cairo',sans-serif;
+    background:#000;
+    color:#fff;
+    margin:0;
+    padding:20px;
+}
+
+h1{
+    text-align:center;
+    color:#c9a45a;
+    margin-bottom:20px;
+}
+
+.box{
+    background:#111;
+    padding:20px;
+    border-radius:14px;
+    margin-bottom:20px;
+    border:1px solid rgba(255,255,255,0.08);
+}
+
+input,select,textarea{
+    width:100%;
+    padding:12px;
+    margin-top:8px;
+    margin-bottom:12px;
+    border-radius:10px;
+    border:1px solid #333;
+    background:#000;
+    color:#fff;
+}
+
+button{
+    padding:12px 18px;
+    border:none;
+    background:#c9a45a;
+    color:#000;
+    font-weight:700;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.preview-img{
+    max-width:150px;
+    border-radius:10px;
+    margin-top:10px;
+}
+
+.section-box{
+    background:#151515;
+    padding:10px;
+    border-radius:10px;
+    margin-bottom:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>لوحة التحكم — إدارة المنيو</h1>
+
+<!-- إضافة قسم -->
+<div class="box">
+    <h2>إضافة قسم جديد</h2>
+    <input id="secName" placeholder="اسم القسم (مثال: كيك)">
+    <button id="addSecBtn">إضافة قسم</button>
+</div>
+
+<!-- إضافة منتج -->
+<div class="box">
+    <h2>إضافة منتج جديد</h2>
+
+    <label>القسم</label>
+    <select id="prodSec"></select>
+
+    <input id="prodName" placeholder="اسم المنتج">
+    <input id="prodPrice" type="number" placeholder="السعر">
+
+    <label>الصورة</label>
+    <input id="prodImgFile" type="file" accept="image/*">
+
+    <img id="preview" class="preview-img" style="display:none;">
+
+    <button id="addProdBtn">إضافة المنتج</button>
+</div>
+
+<!-- عرض -->
+<div class="box">
+    <h2>الأقسام و المنتجات</h2>
+    <input id="search" placeholder="بحث عن منتج...">
+
+    <div id="list"></div>
+</div>
+
 <script>
+// ---------- إعداد Supabase ----------
 const SUPABASE_URL = "https://ztwbgqkxmdhpzqhnefty.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0d2JncWt4bWRocHpxaG5lZnR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTQwMDEsImV4cCI6MjA3OTU5MDAwMX0.6W_V9v5VxQpPfv65Ygc51-m7G1Z8sl8fx1B8bWyA6Xg";
+
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// تحميل الأقسام
-async function loadCategories() {
-    const { data } = await supabase.from("categories").select("*");
-    const sel = document.getElementById("prodSec");
-    sel.innerHTML = "";
-    data.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-}
-loadCategories();
+// Preview image
+document.getElementById("prodImgFile").addEventListener("change", e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{
+        preview.src = ev.target.result;
+        preview.style.display="block";
+    };
+    reader.readAsDataURL(file);
+});
 
-// إضافة قسم
-document.getElementById("addSecBtn").onclick = async () => {
-    const name = document.getElementById("secName").value.trim();
-    if (!name) return alert("اكتب اسم القسم");
+// Load categories
+async function loadCategories(){
+    const { data } = await supabase.from("categories").select("*").order("id");
+    const sel = document.getElementById("prodSec");
+    sel.innerHTML="";
+    data.forEach(c=>{
+        sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+}
+
+// Add category
+document.getElementById("addSecBtn").onclick = async ()=>{
+    const name = secName.value.trim();
+    if(!name) return alert("اكتب اسم القسم");
 
     const { error } = await supabase.from("categories").insert({ name });
-    if (error) {
-        alert("خطأ: " + error.message);
-        return;
-    }
+    if(error) return alert(error.message);
 
     alert("تم إضافة القسم");
-    loadCategories();
+    secName.value="";
+    loadAll();
 };
 
-// إضافة منتج
-document.getElementById("addProdBtn").onclick = async () => {
-    const name = document.getElementById("prodName").value.trim();
-    const price = document.getElementById("prodPrice").value.trim();
-    const category_id = document.getElementById("prodSec").value;
-    const imgFile = document.getElementById("prodImgFile").files[0];
+// Add product
+document.getElementById("addProdBtn").onclick = async ()=>{
+    const name = prodName.value.trim();
+    const price = prodPrice.value;
+    const category_id = prodSec.value;
+    const imgFile = prodImgFile.files[0];
 
-    let imgUrl = "";
+    if(!name || !price) return alert("أكمل البيانات");
 
-    // رفع الصورة إلى bucket
-    if (imgFile) {
-        const fileName = Date.now() + "_" + imgFile.name;
-        const { data, error } = await supabase.storage
+    let image_url = "";
+
+    if(imgFile){
+        const fileName = Date.now()+"_"+imgFile.name;
+
+        const { error: uploadError } = await supabase.storage
             .from("menu-images")
             .upload(fileName, imgFile);
 
-        if (error) {
-            alert("خطأ رفع الصورة: " + error.message);
-            return;
-        }
+        if(uploadError) return alert(uploadError.message);
 
-        imgUrl = `https://ztwbgqkxmdhpzqhnefty.supabase.co/storage/v1/object/public/menu-images/${fileName}`;
+        image_url = `${SUPABASE_URL}/storage/v1/object/public/menu-images/${fileName}`;
     }
 
-    // إضافة المنتج
     const { error } = await supabase.from("products").insert({
-        name,
-        price,
-        category_id,
-        image_url: imgUrl
+        name, price, category_id, image_url
     });
 
-    if (error) {
-        alert("خطأ: " + error.message);
-        return;
-    }
+    if(error) return alert(error.message);
 
-    alert("تم إضافة المنتج بنجاح");
+    alert("تم إضافة المنتج");
+
+    prodName.value="";
+    prodPrice.value="";
+    prodImgFile.value="";
+    preview.style.display="none";
+
+    loadAll();
 };
+
+// Load all data
+async function loadAll(){
+    await loadCategories();
+
+    const { data: categories } = await supabase.from("categories").select("*").order("id");
+    const { data: products } = await supabase.from("products").select("*").order("id");
+
+    const search = document.getElementById("search").value.toLowerCase();
+
+    const list = document.getElementById("list");
+    list.innerHTML="";
+
+    categories.forEach(cat=>{
+        const box = document.createElement("div");
+        box.className="section-box";
+
+        box.innerHTML = `
+            <h3>${cat.name}</h3>
+            <button onclick="deleteCategory(${cat.id})" style="background:#700;color:#fff;margin-top:5px;">حذف القسم</button>
+        `;
+
+        const items = products.filter(p=>p.category_id==cat.id && p.name.toLowerCase().includes(search));
+
+        items.forEach(p=>{
+            const div = document.createElement("div");
+            div.style.margin="10px 0";
+            div.innerHTML = `
+                <img src="${p.image_url}" style="width:60px;border-radius:8px;margin-left:10px;">
+                <strong>${p.name}</strong> — ${p.price} ر.س
+                <button onclick="deleteProduct(${p.id})" style="background:#a00;color:#fff;margin-right:10px;">حذف</button>
+            `;
+            box.appendChild(div);
+        });
+
+        list.appendChild(box);
+    });
+}
+
+// Delete category
+async function deleteCategory(id){
+    if(!confirm("حذف القسم؟")) return;
+    await supabase.from("categories").delete().eq("id", id);
+    loadAll();
+}
+
+// Delete product
+async function deleteProduct(id){
+    if(!confirm("حذف المنتج؟")) return;
+    await supabase.from("products").delete().eq("id", id);
+    loadAll();
+}
+
+// Search
+document.getElementById("search").addEventListener("input", loadAll);
+
+// Init
+loadAll();
 </script>
+
+</body>
+</html>
